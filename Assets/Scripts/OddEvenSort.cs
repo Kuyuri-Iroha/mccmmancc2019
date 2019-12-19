@@ -10,7 +10,11 @@ public class OddEvenSort : MonoBehaviour
     [SerializeField]
     Texture2D src = null;
 
-    int kernelIndex;
+    [SerializeField, Range(0.0f, 1.0f)]
+    float brightnessThreshold = 0.0f;
+
+    int kernelIndexHorizontal;
+    int kernelIndexVertical;
 
     RenderTexture[] buffers;
 
@@ -22,7 +26,8 @@ public class OddEvenSort : MonoBehaviour
     void Start()
     {
         QualitySettings.vSyncCount = 0;
-        kernelIndex = sorterKernel.FindKernel("OddEvenKernel");
+        kernelIndexHorizontal = sorterKernel.FindKernel("OddEvenKernelHorizontal");
+        kernelIndexVertical = sorterKernel.FindKernel("OddEvenKernelVertical");
 
         buffers = new RenderTexture[2];
         for(var i = 0; i < buffers.Length; i++)
@@ -33,26 +38,39 @@ public class OddEvenSort : MonoBehaviour
         }
 
         mat = GetComponent<Renderer>().material;
-        pixelSize = src.width;
+        pixelSize = src.height;
     }
 
     // Update is called once per frame
     void Update()
     {
-        int count = 0;
-
         Graphics.CopyTexture(src, buffers[0]);
 
+        sorterKernel.SetFloat("brightnessThreshold", brightnessThreshold);
+
+        int count = 0;
         for(int i = 0; i < pixelSize; i++)
         {
             sorterKernel.SetFloat("iteration", i);
-            sorterKernel.SetTexture(kernelIndex, "src", buffers[count % 2]);
-            sorterKernel.SetTexture(kernelIndex, "dest", buffers[(count + 1) % 2]);
-            sorterKernel.Dispatch(kernelIndex, 1, 1024, 1);
+            sorterKernel.SetTexture(kernelIndexHorizontal, "src", buffers[count % 2]);
+            sorterKernel.SetTexture(kernelIndexHorizontal, "dest", buffers[(count + 1) % 2]);
+            sorterKernel.Dispatch(kernelIndexHorizontal, 1, 1024, 1);
 
             count++;
         }
 
-        mat.SetTexture( "_BaseMap", buffers[count % 2] );
+        Graphics.CopyTexture(src, buffers[count % 2]);
+        count = 0;
+        for(int i = 0; i < pixelSize; i++)
+        {
+            sorterKernel.SetFloat("iteration", i);
+            sorterKernel.SetTexture(kernelIndexVertical, "src", buffers[count % 2]);
+            sorterKernel.SetTexture(kernelIndexVertical, "dest", buffers[(count + 1) % 2]);
+            sorterKernel.Dispatch(kernelIndexVertical, 1024, 1, 1);
+
+            count++;
+        }
+
+        mat.SetTexture("_BaseMap", buffers[count % 2]);
     }
 }

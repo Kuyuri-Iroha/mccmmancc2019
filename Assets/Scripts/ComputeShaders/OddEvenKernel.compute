@@ -1,10 +1,12 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel OddEvenKernel
+#pragma kernel OddEvenKernelHorizontal
+#pragma kernel OddEvenKernelVertical
 
 RWTexture2D<float4> src;
 RWTexture2D<float4> dest;
 
 float iteration;
+float brightnessThreshold;
 
 bool IsEven(float x)
 {
@@ -16,25 +18,62 @@ float Rgb2Gray( float3 color )
     return 0.299f * color.r + 0.587f * color.g + 0.114f * color.b;
 }
 
-[numthreads(1024, 1, 1)]
-void OddEvenKernel (uint3 id : SV_GroupThreadID, uint3 groupId : SV_GroupID)
+[numthreads(512, 1, 1)]
+void OddEvenKernelHorizontal(uint3 id : SV_GroupThreadID, uint3 groupId : SV_GroupID)
 {
-    uint index = id.x;
-    
-    float3 cCol = src[uint2(id.x, groupId.y)].rgb;
-    float c = Rgb2Gray(cCol);
-    
-    int s = 1;
-    
-    bool isLeft = (IsEven(iteration) && IsEven(index)) || (!IsEven(iteration) && !IsEven(index));
-    
-    float3 lCol = src[min(uint2(1024u, groupId.y), uint2(id.x + s, groupId.y))].rgb;
-    float l = Rgb2Gray(lCol);
-    float3 leftC = (index + s) < 1024u ? c < l ? cCol : lCol : cCol;
-    
-    float3 rCol = src[max(uint2(0u, groupId.y), uint2(id.x - s, groupId.y))].rgb;
-    float r = Rgb2Gray(rCol);
-    float3 rightC = 0 < (index - s) ? r < c ? cCol : rCol : cCol;
-    
-    dest[uint2(id.x, groupId.y)] = float4(isLeft ? leftC : rightC, 1.0);
+    uint2 index = uint2(id.x * 2u +  ( IsEven(iteration) ? 0u : 1u ), groupId.y);
+    uint2 nextIndex = uint2((index.x + 1u) < 1024u ? index.x + 1 : index.x, groupId.y);
+  
+    float3 currCol = src[index].rgb;
+    float curr = Rgb2Gray(currCol);
+
+    float3 nextCol = src[nextIndex].rgb;
+    float next = Rgb2Gray(nextCol);
+
+    bool isInThreshold = curr < brightnessThreshold && next < brightnessThreshold;
+
+    if(next < curr && isInThreshold)
+    {
+        dest[index] = float4(nextCol, 1.0);
+        dest[nextIndex] = float4(currCol, 1.0);
+    }
+    else if(index.x == nextIndex.x)
+    {
+        dest[index] = float4(currCol, 1.0);
+    }
+    else
+    {
+        dest[index] = float4(currCol, 1.0);
+        dest[nextIndex] = float4(nextCol, 1.0);
+    }
+}
+
+[numthreads(1, 512, 1)]
+void OddEvenKernelVertical(uint3 id : SV_GroupThreadID, uint3 groupId : SV_GroupID)
+{
+    uint2 index = uint2(groupId.x, id.y * 2u +  ( IsEven(iteration) ? 0u : 1u ));
+    uint2 nextIndex = uint2(groupId.x, (index.y + 1u) < 1024u ? index.y + 1 : index.y);
+  
+    float3 currCol = src[index].rgb;
+    float curr = Rgb2Gray(currCol);
+
+    float3 nextCol = src[nextIndex].rgb;
+    float next = Rgb2Gray(nextCol);
+
+    bool isInThreshold = curr < brightnessThreshold && next < brightnessThreshold;
+
+    if(next < curr && isInThreshold)
+    {
+        dest[index] = float4(nextCol, 1.0);
+        dest[nextIndex] = float4(currCol, 1.0);
+    }
+    else if(index.y == nextIndex.y)
+    {
+        dest[index] = float4(currCol, 1.0);
+    }
+    else
+    {
+        dest[index] = float4(currCol, 1.0);
+        dest[nextIndex] = float4(nextCol, 1.0);
+    }
 }

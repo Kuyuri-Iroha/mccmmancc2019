@@ -305,6 +305,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sorterKernel: {fileID: 7200000, guid: 99431c85ca4587c49b00637dd1ba8a59, type: 3}
   src: {fileID: 2800000, guid: 9a810ba54e18b3e46895044a22d72fa2, type: 3}
+  brightnessThreshold: 0.262
 --- !u!64 &841843130
 MeshCollider:
   m_ObjectHideFlags: 0
