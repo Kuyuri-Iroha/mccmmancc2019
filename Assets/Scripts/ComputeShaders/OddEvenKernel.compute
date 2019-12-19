@@ -1,0 +1,40 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel OddEvenKernel
+
+RWTexture2D<float4> src;
+RWTexture2D<float4> dest;
+
+float iteration;
+
+bool IsEven(float x)
+{
+    return fmod(x, 2) == 0;
+}
+
+float Rgb2Gray( float3 color )
+{
+    return 0.299f * color.r + 0.587f * color.g + 0.114f * color.b;
+}
+
+[numthreads(1024, 1, 1)]
+void OddEvenKernel (uint3 id : SV_GroupThreadID, uint3 groupId : SV_GroupID)
+{
+    uint index = id.x;
+    
+    float3 cCol = src[uint2(id.x, groupId.y)].rgb;
+    float c = Rgb2Gray(cCol);
+    
+    int s = 1;
+    
+    bool isLeft = (IsEven(iteration) && IsEven(index)) || (!IsEven(iteration) && !IsEven(index));
+    
+    float3 lCol = src[min(uint2(1024u, groupId.y), uint2(id.x + s, groupId.y))].rgb;
+    float l = Rgb2Gray(lCol);
+    float3 leftC = (index + s) < 1024u ? c < l ? cCol : lCol : cCol;
+    
+    float3 rCol = src[max(uint2(0u, groupId.y), uint2(id.x - s, groupId.y))].rgb;
+    float r = Rgb2Gray(rCol);
+    float3 rightC = 0 < (index - s) ? r < c ? cCol : rCol : cCol;
+    
+    dest[uint2(id.x, groupId.y)] = float4(isLeft ? leftC : rightC, 1.0);
+}
