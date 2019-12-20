@@ -1,0 +1,21 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ObliqueKernel
+
+RWTexture2D<float4> result;
+
+float v0;
+float angle;
+
+[numthreads(512, 1, 1)]
+void ObliqueKernel (uint3 id : SV_GroupThreadID)
+{
+    const float G = 1.0;
+    
+    // 斜方投射の軌道方程式
+    float y = tan(angle) * id.x - (G / (2.0 * pow(v0, 2.0) * pow(cos(angle), 2.0))) * pow(id.x, 2.0);
+    
+    if(0.0 <= y && y <= 511.0)
+    {
+        result[uint2(id.x, y)] = float4(0.0, 1.0, 0.0, 1.0);
+    }
+}
